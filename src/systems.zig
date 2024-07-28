@@ -7,13 +7,30 @@ const locals = @import("./game_config.zig");
 const ent = @import("./entity.zig");
 const loader = @import("./level_loader.zig");
 
+pub fn sys_render_display_text(entity : *ent.Entity) void {
+    for(entity.flags.items) |flag| {
+        if(flag == ent.EntityFlag.IsDisplayText) {
+            rl.DrawText(
+                entity.display_text.ptr, 
+                @as(c_int, @intFromFloat(entity.position.x)),
+                @as(c_int, @intFromFloat(entity.position.y)),
+                @as(c_int, @intCast(entity.display_text_size)),
+                rl.WHITE
+            );
+        }
+    }
+}
+
 pub fn sys_render_coin_text(level : *loader.Level) void {
-    std.debug.assert(level.coins_collected <= locals.MAX_POSSIBLE_COINS);
+    if(level.coins_collected == null) {
+        return;
+    }
+    std.debug.assert(level.coins_collected.? <= locals.MAX_POSSIBLE_COINS);
     const count = comptime std.fmt.count("Coins: {}", .{locals.MAX_POSSIBLE_COINS});
     
     var buf : [count + 1]u8 = undefined;
 
-    const string_text = std.fmt.bufPrintZ(&buf, "Coins: {}", .{level.coins_collected}) catch unreachable;
+    const string_text = std.fmt.bufPrintZ(&buf, "Coins: {}", .{level.coins_collected.?}) catch unreachable;
     const x = 0 - locals.GAME_WIDTH / 2;
     const y = 0 - locals.GAME_HEIGHT + 37;
     rl.DrawText(string_text.ptr, x, y, locals.COIN_TEXT_FONT_SIZE, rl.WHITE);
@@ -21,8 +38,11 @@ pub fn sys_render_coin_text(level : *loader.Level) void {
 
 //Spawn coins based on a timer at random x positions on the screen, clamped
 pub fn sys_spawn_coins(level : *loader.Level, calloc : *std.mem.Allocator, delta : f32) !void {
-    level.coin_spawn_timer += delta;
-    if(level.coin_spawn_timer >= level.coin_spawn_delay) {
+    if(level.coin_spawn_timer == null) {
+        return;
+    }
+    level.coin_spawn_timer.? += delta;
+    if(level.coin_spawn_timer.? >= level.coin_spawn_delay.?) {
         level.coin_spawn_timer = 0.0;
 
         var coin_entity = ent.Entity.new_coin_entity(calloc);
@@ -31,8 +51,8 @@ pub fn sys_spawn_coins(level : *loader.Level, calloc : *std.mem.Allocator, delta
         coin_entity.position.x = @as(f32, @floatFromInt(rl.GetRandomValue(left_side, right_side)));
         coin_entity.position.y = -locals.GAME_HEIGHT;
 
-        try coin_entity.add_flag(ent.EntityFlag.IsCoin);
-        try coin_entity.add_flag(ent.EntityFlag.IsAnimated);
+        coin_entity.add_flag(ent.EntityFlag.IsCoin);
+        coin_entity.add_flag(ent.EntityFlag.IsAnimated);
         try level.entities.append(coin_entity);
     }
 }
@@ -96,7 +116,7 @@ pub fn sys_update_player(player : *ent.Entity, delta : f32) void {
 //Update player collision with coins
 pub fn sys_update_coin_collision(level : *loader.Level) void {
     const entities = &level.entities;
-    var player : *ent.Entity = undefined;
+    var player : ?*ent.Entity = null;
     for (entities.items) |*entity| {
         for (entity.flags.items) |flag| {
             if(flag == ent.EntityFlag.IsPlayer) {
@@ -105,31 +125,34 @@ pub fn sys_update_coin_collision(level : *loader.Level) void {
             }
 
         }
-        if(player != undefined) {
+        if(player != null) {
             break;
         }
     }
 
-    const player_rect = rl.Rectangle {
-        .x = player.position.x,
-        .y = player.position.y,
-        .width = player.width,
-        .height = player.height,
-    };
+    //If player is null, we're probably on the title screen or something
+    if(player != null) {
+        const player_rect = rl.Rectangle {
+            .x = player.?.position.x,
+            .y = player.?.position.y,
+            .width = player.?.width,
+            .height = player.?.height,
+        };
 
-    for(entities.items) |*entity| {
-        for (entity.flags.items) |flag| {
-            if(flag == ent.EntityFlag.IsCoin) {
-                const coin_rect = rl.Rectangle {
-                    .x = entity.position.x,
-                    .y = entity.position.y,
-                    .width = entity.width,
-                    .height = entity.height,
-                };
+        for(entities.items) |*entity| {
+            for (entity.flags.items) |flag| {
+                if(flag == ent.EntityFlag.IsCoin) {
+                    const coin_rect = rl.Rectangle {
+                        .x = entity.position.x,
+                        .y = entity.position.y,
+                        .width = entity.width,
+                        .height = entity.height,
+                    };
 
-                if(rl.CheckCollisionRecs(player_rect, coin_rect)) {
-                    level.coins_collected += 1;
-                    entity.alive = false;
+                    if(rl.CheckCollisionRecs(player_rect, coin_rect)) {
+                        level.coins_collected.? += 1;
+                        entity.alive = false;
+                    }
                 }
             }
         }
@@ -171,13 +194,17 @@ pub fn sys_render_coin(coin : *ent.Entity, art_cache : *res_art.ArtCache) void {
 
 //Render tiles
 pub fn render_tiles(level : *loader.Level, art_cache : *res_art.ArtCache) void {
+    if(level.width_of_tiles == null) {
+        return;
+    }
+
     //Draw tiles
-    var i = level.tile_start_x;
-    while(i < level.width_of_tiles) : (i += 1) {
+    var i = level.tile_start_x.?;
+    while(i < level.width_of_tiles.?) : (i += 1) {
         const texture = art_cache.get_art(res_art.ArtAsset.TileSheet);
         const i_as_int : i32 = @intCast(i);
         const x : i32  = i_as_int * locals.TILE_WIDTH;
-        rl.DrawTexture(texture.*, x, level.tile_start_y, rl.WHITE);
+        rl.DrawTexture(texture.*, x, level.tile_start_y.?, rl.WHITE);
     }
 }
 

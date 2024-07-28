@@ -29,13 +29,13 @@ pub fn main() !void {
     defer art_cache.unload_and_denit();
 
     //load level
-    var current_level = try loader.load_level_1(&calloc);
+    var current_level = try loader.load_title_state(&calloc);
     defer current_level.unload();
 
     //Start main loop
     while(!rl.WindowShouldClose()) {
         const delta = rl.GetFrameTime();
-        //preupdate
+        //Spawn coins
         try sys.sys_spawn_coins(&current_level, &calloc, delta);
 
         //Update here some stuff here
@@ -51,12 +51,22 @@ pub fn main() !void {
         //Clean up dead entities
         try sys.cleanup_dead_entities(&current_level, &calloc);
         
-        
+        //If we're on the title state, check if we should enter playstate
+        if(current_level.engine_state == loader.EngineState.TitleState) {
+            if(rl.IsKeyPressed(rl.KEY_SPACE) or rl.IsKeyPressed(rl.KEY_ENTER)) {
+                current_level.unload();
+                current_level = try loader.load_level_1(&calloc);
+            }
+        }
+
         //Render
         rl.BeginDrawing();
         rl.ClearBackground(rl.BLACK);
 
-        rl.BeginMode2D(current_level.game_camera);
+        if(current_level.game_camera != null) {
+            rl.BeginMode2D(current_level.game_camera.?);
+        }
+        
 
         sys.render_tiles(&current_level, &art_cache);
         
@@ -64,11 +74,15 @@ pub fn main() !void {
         for(current_level.entities.items) |*entity| {
             sys.sys_render_coin(entity, &art_cache);
             sys.sys_render_player(entity, &art_cache);
+            sys.sys_render_display_text(entity);
         }
 
         sys.sys_render_coin_text(&current_level);
 
-        rl.EndMode2D();
+        if(current_level.game_camera != null) {
+            rl.EndMode2D();
+        }
+        
         rl.EndDrawing();
     }
 }

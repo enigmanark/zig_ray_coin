@@ -9,31 +9,34 @@ pub const EntityFlag = enum {
     IsPlayer,
     IsCoin,
     IsAnimated,
+    IsDisplayText, 
 };
 
 pub const Entity = struct {
-    alive : bool,
-    flags : std.ArrayList(EntityFlag),
-    position : rl.Vector2,
-    width : f32,
-    height : f32,
-    art : res_art.ArtAsset,
-    current_h_frame : i8,
-    anim_delay : f32,
-    anim_timer : f32,
-    source_x : f32,
-    source_y : f32,
-    source_width : f32,
-    source_height : f32,
+    alive: bool,
+    flags: std.ArrayList(EntityFlag),
+    position: rl.Vector2,
+    width: f32,
+    height: f32,
+    art: res_art.ArtAsset,
+    current_h_frame: i8,
+    anim_delay: f32,
+    anim_timer: f32,
+    source_x: f32,
+    source_y: f32,
+    source_width: f32,
+    source_height: f32,
+    display_text: []const u8,
+    display_text_size: i8,
 
-    pub fn add_flag(self : *Entity, flag : EntityFlag) !void {
-        try self.flags.append(flag);
+    pub fn add_flag(self: *Entity, flag: EntityFlag) void {
+        self.flags.append(flag) catch unreachable;
     }
 
-    pub fn new_coin_entity(allocator : *std.mem.Allocator) Entity {
+    pub fn new_coin_entity(allocator: *std.mem.Allocator) Entity {
         var coin = new_default_entity(allocator);
         coin.position.x = 0;
-        coin.position.y = - 300;
+        coin.position.y = -300;
         coin.anim_delay = 0.5;
         coin.art = res_art.ArtAsset.Coin;
         coin.width = locals.COIN_WIDTH;
@@ -44,7 +47,7 @@ pub const Entity = struct {
         return coin;
     }
 
-    pub fn new_player_entity(allocator : *std.mem.Allocator) Entity {
+    pub fn new_player_entity(allocator: *std.mem.Allocator) Entity {
         var entity = new_default_entity(allocator);
         entity.anim_delay = 0.5;
         entity.art = res_art.ArtAsset.Player;
@@ -56,14 +59,11 @@ pub const Entity = struct {
         return entity;
     }
 
-    pub fn new_default_entity(allocator : *std.mem.Allocator) Entity {
-        return Entity {
+    pub fn new_default_entity(allocator: *std.mem.Allocator) Entity {
+        return Entity{
             .alive = true,
             .flags = std.ArrayList(EntityFlag).init(allocator.*),
-            .position = rl.Vector2 {
-                .x = 0, 
-                .y = 0
-            },
+            .position = rl.Vector2{ .x = 0, .y = 0 },
             .width = 0,
             .height = 0,
             .art = res_art.ArtAsset.Player,
@@ -74,36 +74,38 @@ pub const Entity = struct {
             .source_y = 0,
             .source_width = 0,
             .source_height = 0,
+            .display_text = "",
+            .display_text_size = 0,
         };
     }
 
-    pub fn get_source_rect(self : *Entity) rl.Rectangle {
-        const source_x : f32 = @as(f32, @floatFromInt(self.current_h_frame)) * self.source_width;
-        const source_y : f32 = 0;
-        const s_width  : f32 = self.source_width;
-        const s_height : f32 = self.source_height;
-        return rl.Rectangle {
-            .x = source_x ,
+    pub fn get_source_rect(self: *Entity) rl.Rectangle {
+        const source_x: f32 = @as(f32, @floatFromInt(self.current_h_frame)) * self.source_width;
+        const source_y: f32 = 0;
+        const s_width: f32 = self.source_width;
+        const s_height: f32 = self.source_height;
+        return rl.Rectangle{
+            .x = source_x,
             .y = source_y,
             .width = s_width,
             .height = s_height,
         };
     }
 
-    pub fn get_dest_rect(self : *Entity) rl.Rectangle {
+    pub fn get_dest_rect(self: *Entity) rl.Rectangle {
         const dest_x = self.position.x;
         const dest_y = self.position.y;
         const d_width = self.width;
         const d_height = self.height;
-        return rl.Rectangle {
+        return rl.Rectangle{
             .x = dest_x,
             .y = dest_y,
             .width = d_width,
             .height = d_height,
-        };        
+        };
     }
 
-    pub fn unload_and_denit(self : *Entity) void {
+    pub fn unload_and_denit(self: *Entity) void {
         self.flags.deinit();
     }
 };
