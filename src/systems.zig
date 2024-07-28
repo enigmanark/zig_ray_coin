@@ -93,6 +93,49 @@ pub fn sys_update_player(player : *ent.Entity, delta : f32) void {
 
 }
 
+//Update player collision with coins
+pub fn sys_update_coin_collision(level : *loader.Level) void {
+    const entities = &level.entities;
+    var player : *ent.Entity = undefined;
+    for (entities.items) |*entity| {
+        for (entity.flags.items) |flag| {
+            if(flag == ent.EntityFlag.IsPlayer) {
+                player = entity;
+                break;
+            }
+
+        }
+        if(player != undefined) {
+            break;
+        }
+    }
+
+    const player_rect = rl.Rectangle {
+        .x = player.position.x,
+        .y = player.position.y,
+        .width = player.width,
+        .height = player.height,
+    };
+
+    for(entities.items) |*entity| {
+        for (entity.flags.items) |flag| {
+            if(flag == ent.EntityFlag.IsCoin) {
+                const coin_rect = rl.Rectangle {
+                    .x = entity.position.x,
+                    .y = entity.position.y,
+                    .width = entity.width,
+                    .height = entity.height,
+                };
+
+                if(rl.CheckCollisionRecs(player_rect, coin_rect)) {
+                    level.coins_collected += 1;
+                    entity.alive = false;
+                }
+            }
+        }
+    }
+}
+
 //Update coin movement and also set them to not alive if they go to far offscreen
 pub fn sys_update_coin(coin : *ent.Entity, delta : f32) void {
     for (coin.flags.items) |flag| {

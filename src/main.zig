@@ -38,14 +38,20 @@ pub fn main() !void {
         //preupdate
         try sys.sys_spawn_coins(&current_level, &calloc, delta);
 
-        //Update here
+        //Update here some stuff here
         for(current_level.entities.items) |*entity| {
             sys.sys_update_player(entity, delta);
             sys.sys_update_coin(entity, delta);
             sys.sys_update_anims(entity, delta);
         }
 
+        //Update coin collision
+        sys.sys_update_coin_collision(&current_level);
+
+        //Clean up dead entities
         try sys.cleanup_dead_entities(&current_level, &calloc);
+        
+        
         //Render
         rl.BeginDrawing();
         rl.ClearBackground(rl.BLACK);

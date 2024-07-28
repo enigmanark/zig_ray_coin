@@ -15,6 +15,7 @@ pub const Level = struct {
     coin_spawn_delay : f32,
     coin_spawn_timer : f32,
     coins_collected : u8,
+    
 
     pub fn unload(self : *Level) void {
         for(self.entities.items) |*entity| {
@@ -49,6 +50,17 @@ pub fn load_level_1(calloc : *std.mem.Allocator) !Level {
 
     //add player to entity array of level
     try entities.append(player);
+
+    //Find shortcut to player with a pointer and assign to level
+    var player_shortcut : *ent.Entity = undefined;
+    for (entities.items) |entity| {
+        for (entity.flags.items) |flag| {
+            if(flag == ent.EntityFlag.IsPlayer) {
+                player_shortcut = @constCast(&entity);
+            }
+        }
+    }
+ 
 
     //Init tile vars
     const width_of_tiles = locals.WINDOW_WIDTH / locals.TILE_WIDTH;
